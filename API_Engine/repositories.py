@@ -60,6 +60,7 @@ class LoanRepository:
             'loan_amount': data['allLoans'][-1]['demandedAmount'],
         }
 
+        #print(customerData)
         customerDf = pd.DataFrame([customerData.values()], columns=customerData.keys())
         customerDf = customerDf.fillna(0)
         
@@ -70,17 +71,27 @@ class LoanRepository:
         
         actual_loan_amount = customerDf['loan_amount'].values[0]
         
-        X = customerDf.drop("loan_amount",axis=1)
+        model = pickle.load(open("./API_Engine/model.sav", 'rb'))
         
-        linreg = pickle.load(open("./API_Engine/model.sav", 'rb'))
-        
-        prediction = linreg.predict(X)
+        prediction = model.predict(customerDf)
         predicted_loan_amount = prediction[0]
-        
+        message = ''
+        score = (predicted_loan_amount/actual_loan_amount) / (1+2.71**(-predicted_loan_amount/actual_loan_amount))
+        #print(score)
+        if score > 1:
+            score = 1
+        if score > 0.75:
+            message = "Will be fully paid."
+        elif score < 0.75 and score > 0.55:
+            message = "It may/may not be paid."
+        else:
+            message = "Risk is there, chances are low."
         return JSONResponse(
             content = {
                 "customer_id": customer_id,
                 'actual_loan_amount': actual_loan_amount,
-                'predicted_loan_amount': predicted_loan_amount
+                'predicted_loan_amount': predicted_loan_amount,
+                'message': message,
+                'score': score
             }
         )
